@@ -130,7 +130,8 @@ server {
 }
 ```
 
-> `X-Forwarded-For` 一定要传，否则统计里所有访问都会记成代理 IP（127.0.0.1）。
+> `X-Real-IP` / `X-Forwarded-For` 一定要传，否则统计里所有访问都会记成代理 IP（127.0.0.1）。
+> 服务优先读取 `X-Real-IP`，其次 `X-Forwarded-For` 的第一个地址。
 
 ## 五、已内置的 SEO 支持
 

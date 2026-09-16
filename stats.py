@@ -81,10 +81,23 @@ def _now():
 
 
 def get_client_ip(request) -> str:
-    """取真实客户端 IP，优先反向代理头。"""
+    """取真实客户端 IP。
+
+    优先级:
+      1. X-Real-IP         (nginx 等反向代理设置的真实客户端 IP)
+      2. X-Forwarded-For   (取最左侧第一个地址，即原始客户端)
+      3. remote_addr       (无代理时的直连地址)
+    """
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip and real_ip.strip():
+        return real_ip.split(",")[0].strip()
+
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        first = forwarded.split(",")[0].strip()
+        if first:
+            return first
+
     return request.remote_addr or "unknown"
 
 
