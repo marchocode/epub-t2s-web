@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>统计 · EPUB 繁转简</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #181b22;
+    --border: #2a2f3a;
+    --fg: #e8eaed;
+    --muted: #9aa3b2;
+    --accent: #4f8cff;
+    --ok: #34c759;
+    --warn: #ff9f0a;
+    --err: #ff453a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(1200px 600px at 50% -10%, #1c2433 0%, var(--bg) 60%);
+    color: var(--fg);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    padding: 32px 24px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  header { display: flex; align-items: baseline; justify-content: space-between;
+           flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+  h1 { margin: 0; font-size: 22px; letter-spacing: .5px; }
+  h2 { font-size: 16px; margin: 0 0 14px; color: var(--fg); }
+  .sub { color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .controls { display: flex; gap: 10px; align-items: center; }
+  select {
+    background: var(--card); color: var(--fg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 12px; font-size: 14px;
+  }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          gap: 14px; margin-bottom: 22px; }
+  .stat {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px 20px;
+  }
+  .stat .label { color: var(--muted); font-size: 12.5px; letter-spacing: .3px; }
+  .stat .value { font-size: 28px; font-weight: 700; margin-top: 6px;
+                 font-variant-numeric: tabular-nums; }
+  .stat .value small { font-size: 14px; font-weight: 500; color: var(--muted); }
+
+  .panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px 22px; margin-bottom: 22px;
+  }
+
+  /* 简易柱状图 */
+  .chart { display: flex; align-items: flex-end; gap: 3px; height: 200px;
+           padding-top: 8px; overflow-x: auto; }
+  .bar { flex: 1 0 10px; min-width: 10px; display: flex; flex-direction: column;
+         justify-content: flex-end; align-items: center; height: 100%;
+         position: relative; }
+  .bar .fill { width: 100%; background: linear-gradient(180deg, var(--accent), #2c5fb8);
+               border-radius: 3px 3px 0 0; min-height: 2px; transition: filter .15s; }
+  .bar:hover .fill { filter: brightness(1.3); }
+  .bar .tip {
+    position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    background: #0b0d11; border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 9px; font-size: 12px; white-space: nowrap; opacity: 0;
+    pointer-events: none; transition: opacity .12s; z-index: 5;
+  }
+  .bar:hover .tip { opacity: 1; }
+  .axis { display: flex; justify-content: space-between; color: var(--muted);
+          font-size: 12px; margin-top: 8px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border);
+           white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; }
+  .pill.ok { background: rgba(52,199,89,.15); color: var(--ok); }
+  .pill.err { background: rgba(255,69,58,.15); color: var(--err); }
+  .table-wrap { max-height: 360px; overflow: auto; }
+  .empty { color: var(--muted); font-size: 13px; padding: 12px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>转换统计</h1>
+      <div class="sub">访问量 · 来源 IP · 每日处理量 · 累计处理量</div>
+    </div>
+    <div class="controls">
+      <label class="sub" for="days">范围</label>
+      <select id="days">
+        <option value="7">最近 7 天</option>
+        <option value="30" selected>最近 30 天</option>
+        <option value="90">最近 90 天</option>
+        <option value="365">最近 365 天</option>
+      </select>
+      <a href="/">← 返回转换</a>
+    </div>
+  </header>
+
+  <div class="grid" id="cards"></div>
+
+  <div class="panel">
+    <h2>每日处理量</h2>
+    <div class="chart" id="chart"></div>
+    <div class="axis" id="axis"></div>
+  </div>
+
+  <div class="panel">
+    <h2>来源 IP（按访问次数）</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>IP</th><th class="num">访问次数</th><th>最近访问</th></tr></thead>
+        <tbody id="ips"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>最近转换记录</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>时间</th><th>IP</th><th>文件</th>
+          <th class="num">大小</th><th class="num">耗时</th><th>状态</th>
+        </tr></thead>
+        <tbody id="recent"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function fmtBytes(n) {
+  if (!n) return '0 B';
+  const u = ['B','KB','MB','GB'];
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return n.toFixed(i ? 1 : 0) + ' ' + u[i];
+}
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function load(days) {
+  const res = await fetch('/api/stats?days=' + days);
+  if (!res.ok) { document.getElementById('cards').innerHTML =
+    '<div class="empty">加载失败</div>'; return; }
+  const d = await res.json();
+
+  // 概览卡片
+  const cards = [
+    ['累计访问量', d.total_visits],
+    ['累计处理量', d.total_converts],
+    ['独立 IP', d.unique_ips],
+    ['累计处理体积', fmtBytes(d.bytes_total)],
+    ['失败次数', d.total_failed],
+  ];
+  document.getElementById('cards').innerHTML = cards.map(([label, val]) =>
+    `<div class="stat"><div class="label">${label}</div>
+     <div class="value">${typeof val === 'number' ? val.toLocaleString() : val}</div></div>`
+  ).join('');
+
+  // 每日柱状图
+  const daily = d.daily || [];
+  const max = Math.max(1, ...daily.map(x => x.converts));
+  const chart = document.getElementById('chart');
+  chart.innerHTML = daily.map(x => {
+    const h = Math.round(x.converts / max * 100);
+    return `<div class="bar">
+      <div class="tip">${x.day}<br>处理 ${x.converts} · 访问 ${x.visits}<br>${fmtBytes(x.bytes)}</div>
+      <div class="fill" style="height:${x.converts ? Math.max(h, 3) : 0}%"></div>
+    </div>`;
+  }).join('');
+  const axis = document.getElementById('axis');
+  if (daily.length) {
+    axis.innerHTML = `<span>${daily[0].day}</span>
+      <span>峰值 ${max}/天</span>
+      <span>${daily[daily.length-1].day}</span>`;
+  }
+
+  // 来源 IP
+  const ips = d.top_ips || [];
+  document.getElementById('ips').innerHTML = ips.length ? ips.map(r =>
+    `<tr><td class="mono">${esc(r.ip)}</td>
+     <td class="num">${r.cnt}</td>
+     <td class="mono">${esc(r.last_ts)}</td></tr>`
+  ).join('') : '<tr><td colspan="3" class="empty">暂无数据</td></tr>';
+
+  // 最近转换
+  const recent = d.recent || [];
+  document.getElementById('recent').innerHTML = recent.length ? recent.map(r =>
+    `<tr>
+      <td class="mono">${esc(r.ts)}</td>
+      <td class="mono">${esc(r.ip)}</td>
+      <td>${esc(r.filename)}</td>
+      <td class="num">${fmtBytes(r.size)}</td>
+      <td class="num">${r.duration != null ? r.duration.toFixed(1) + 's' : '-'}</td>
+      <td><span class="pill ${r.success ? 'ok' : 'err'}">${r.success ? '成功' : '失败'}</span></td>
+    </tr>`
+  ).join('') : '<tr><td colspan="6" class="empty">暂无数据</td></tr>';
+}
+
+const sel = document.getElementById('days');
+sel.addEventListener('change', () => load(sel.value));
+load(sel.value);
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+stats.db
+stats.db-*
+.env
+
+# 测试用电子书，不入库
+*.epub

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ site_name }} — 在线繁体中文 EPUB 转简体</title>
+<meta name="description" content="{{ site_description }}">
+<meta name="keywords" content="{{ site_keywords }}">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="{{ site_url }}/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" hreflang="zh-CN" href="{{ site_url }}/">
+<link rel="alternate" hreflang="x-default" href="{{ site_url }}/">
+
+<!-- Open Graph / 社交分享 -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ site_name }}">
+<meta property="og:title" content="{{ site_name }} — 在线繁体中文 EPUB 转简体">
+<meta property="og:description" content="{{ site_description }}">
+<meta property="og:url" content="{{ site_url }}/">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="{{ site_name }} — 在线繁体中文 EPUB 转简体">
+<meta name="twitter:description" content="{{ site_description }}">
+
+{% if google_verification %}<meta name="google-site-verification" content="{{ google_verification }}">{% endif %}
+{% if bing_verification %}<meta name="msvalidate.01" content="{{ bing_verification }}">{% endif %}
+{% if baidu_verification %}<meta name="baidu-site-verification" content="{{ baidu_verification }}">{% endif %}
+
+<!-- 结构化数据：帮助搜索引擎理解这是一个在线工具 -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": {{ site_name | tojson }},
+  "url": {{ site_url | tojson }},
+  "description": {{ site_description | tojson }},
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Web",
+  "inLanguage": "zh-CN",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "CNY"
+  }
+}
+</script>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #181b22;
+    --border: #2a2f3a;
+    --fg: #e8eaed;
+    --muted: #9aa3b2;
+    --accent: #4f8cff;
+    --accent-hover: #6ba0ff;
+    --ok: #34c759;
+    --err: #ff453a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(1200px 600px at 50% -10%, #1c2433 0%, var(--bg) 60%);
+    color: var(--fg);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 620px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 32px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  }
+  h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: .5px; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 26px; }
+
+  .drop {
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    padding: 42px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .18s, background .18s;
+    background: #14171d;
+  }
+  .drop:hover, .drop.drag {
+    border-color: var(--accent);
+    background: #171c26;
+  }
+  .drop .icon { font-size: 40px; line-height: 1; margin-bottom: 12px; }
+  .drop .hint { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .drop .fname {
+    margin-top: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    word-break: break-all;
+  }
+
+  button {
+    width: 100%;
+    margin-top: 22px;
+    padding: 13px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .18s, opacity .18s;
+  }
+  button:hover:not(:disabled) { background: var(--accent-hover); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+
+  .progress {
+    margin-top: 20px;
+    height: 8px;
+    background: #11141a;
+    border-radius: 99px;
+    overflow: hidden;
+    display: none;
+  }
+  .progress.show { display: block; }
+  .progress .bar {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, var(--accent), #8ab4ff);
+    transition: width .2s;
+  }
+
+  .status {
+    margin-top: 18px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    display: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .status.show { display: block; }
+  .status.info { background: #16202e; color: #bcd3ff; }
+  .status.ok   { background: #122417; color: #9be7b3; }
+  .status.err  { background: #2a1416; color: #ffb3ae; }
+
+  .download {
+    display: none;
+    margin-top: 18px;
+    text-align: center;
+  }
+  .download.show { display: block; }
+  .download a {
+    display: inline-block;
+    padding: 12px 26px;
+    border-radius: 10px;
+    background: var(--ok);
+    color: #08130b;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .download a:hover { filter: brightness(1.08); }
+
+  .seo {
+    max-width: 620px;
+    margin: 28px auto 0;
+    color: #c3c9d4;
+    font-size: 14px;
+  }
+  .seo h2 { font-size: 17px; margin: 26px 0 8px; color: var(--fg); }
+  .seo p, .seo li, .seo dd { color: var(--muted); line-height: 1.75; }
+  .seo ol { padding-left: 20px; }
+  .seo dt { color: var(--fg); font-weight: 600; margin-top: 14px; }
+  .seo dd { margin: 4px 0 0; }
+  .seo code {
+    background: #11141a; border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 5px; font-size: 12.5px;
+  }
+  .seo .note {
+    margin-top: 22px; padding: 12px 14px; font-size: 13px;
+    background: #14171d; border: 1px solid var(--border); border-radius: 10px;
+  }
+</style>
+</head>
+<body>
+  <main class="card">
+    <h1>EPUB 繁体 → 简体 在线转换</h1>
+    <div class="sub">{{ site_description }} <a href="/stats" style="color:var(--accent);text-decoration:none">查看统计 →</a></div>
+
+    <form id="form">
+      <div class="drop" id="drop">
+        <div class="icon">📖</div>
+        <div>点击选择，或把 <b>.epub</b> 文件拖到这里</div>
+        <div class="hint">仅支持 .epub，最大 200&nbsp;MB</div>
+        <div class="fname" id="fname"></div>
+      </div>
+      <input type="file" id="file" accept=".epub,application/epub+zip" hidden>
+      <button type="submit" id="submit" disabled>开始转换</button>
+    </form>
+
+    <div class="progress" id="progress"><div class="bar" id="bar"></div></div>
+    <div class="status" id="status"></div>
+    <div class="download" id="download">
+      <a id="dl" download>⬇︎ 下载简体 EPUB</a>
+    </div>
+  </main>
+
+  <!-- 供搜索引擎抓取的真实文本内容（用户可见的说明 + FAQ） -->
+  <section class="seo">
+    <h2>关于这个工具</h2>
+    <p>
+      本工具可以把<b>繁体中文 EPUB</b> 电子书在线转换为<b>简体中文</b>。
+      转换只作用于书中的正文、标题、目录与元数据文字，不会改动 EPUB 的内部结构、
+      样式、图片与排版，因此在 Kindle、Apple Books、微信读书、靜读等阅读器上都能正常打开。
+    </p>
+
+    <h2>使用步骤</h2>
+    <ol>
+      <li>点击上方区域或将 <code>.epub</code> 文件拖入虚线框；</li>
+      <li>点击「开始转换」，等待上传与处理完成；</li>
+      <li>点击下载按钮，得到文件名为 <code>原书名_简体.epub</code> 的简体版本。</li>
+    </ol>
+
+    <h2>常见问题</h2>
+    <dl>
+      <dt>转换会破坏书的排版吗？</dt>
+      <dd>
+        不会。工具只替换文本节点，保留所有标签、属性、CSS 样式和图片资源，
+        并保持 EPUB 的 <code>mimetype</code> 规范，因此不会影响阅读器渲染。
+      </dd>
+      <dt>支持多大的文件？</dt>
+      <dd>目前单个文件上限为 200&nbsp;MB，足以覆盖绝大多数电子书。</dd>
+      <dt>我的书会被保存吗？</dt>
+      <dd>不会。文件仅在服务器临时目录处理，下载完成后立即删除，不做任何持久化存储。</dd>
+      <dt>可以处理哪些格式？</dt>
+      <dd>目前支持 EPUB。EPUB 内部的 XHTML、HTML、OPF、NCX、XML、CSS 等文本资源都会被处理。</dd>
+      <dt>需要付费或注册吗？</dt>
+      <dd>完全免费，无需注册，直接在浏览器中完成转换并下载。</dd>
+    </dl>
+
+    <p class="note">
+      本工具仅供用户对自己合法拥有、可自由处理的电子书进行格式转换使用。
+      请勿用于传播受版权保护的内容；因使用本工具产生的一切后果由使用者自行承担。
+    </p>
+  </section>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "转换会破坏书的排版吗？",
+        "acceptedAnswer": {"@type": "Answer", "text": "不会。工具只替换文本节点，保留所有标签、属性、CSS 样式和图片资源，并保持 EPUB 的 mimetype 规范。"}
+      },
+      {
+        "@type": "Question",
+        "name": "支持多大的文件？",
+        "acceptedAnswer": {"@type": "Answer", "text": "单个文件上限为 200 MB。"}
+      },
+      {
+        "@type": "Question",
+        "name": "我的书会被保存吗？",
+        "acceptedAnswer": {"@type": "Answer", "text": "不会。文件仅在服务器临时目录处理，下载完成后立即删除。"}
+      },
+      {
+        "@type": "Question",
+        "name": "需要付费或注册吗？",
+        "acceptedAnswer": {"@type": "Answer", "text": "完全免费，无需注册。"}
+      }
+    ]
+  }
+  </script>
+
+<script>
+(function () {
+  const drop     = document.getElementById('drop');
+  const fileIn   = document.getElementById('file');
+  const fname    = document.getElementById('fname');
+  const submit   = document.getElementById('submit');
+  const form     = document.getElementById('form');
+  const progress = document.getElementById('progress');
+  const bar      = document.getElementById('bar');
+  const status   = document.getElementById('status');
+  const dlBox    = document.getElementById('download');
+  const dl       = document.getElementById('dl');
+
+  let selected = null;
+  let objectUrl = null;
+
+  function setStatus(msg, kind) {
+    status.textContent = msg;
+    status.className = 'status show ' + (kind || 'info');
+  }
+  function clearStatus() {
+    status.className = 'status';
+    status.textContent = '';
+  }
+  function pick(file) {
+    if (!file) return;
+    if (!/\.epub$/i.test(file.name)) {
+      setStatus('请选择 .epub 文件', 'err');
+      return;
+    }
+    selected = file;
+    fname.textContent = file.name + '  (' + (file.size / 1048576).toFixed(1) + ' MB)';
+    submit.disabled = false;
+    clearStatus();
+    dlBox.classList.remove('show');
+  }
+
+  drop.addEventListener('click', () => fileIn.click());
+  fileIn.addEventListener('change', e => pick(e.target.files[0]));
+
+  ['dragenter', 'dragover'].forEach(ev =>
+    drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(ev =>
+    drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+  drop.addEventListener('drop', e => pick(e.dataTransfer.files[0]));
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    if (!selected) return;
+
+    submit.disabled = true;
+    dlBox.classList.remove('show');
+    if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+
+    const data = new FormData();
+    data.append('file', selected, selected.name);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/convert');
+    xhr.responseType = 'blob';
+
+    progress.classList.add('show');
+    bar.style.width = '0%';
+    setStatus('上传并转换中，请稍候…（大文件可能需要几十秒）', 'info');
+
+    xhr.upload.onprogress = ev => {
+      if (ev.lengthComputable) {
+        const pct = Math.round(ev.loaded / ev.total * 90);
+        bar.style.width = pct + '%';
+      }
+    };
+    xhr.upload.onload = () => {
+      bar.style.width = '95%';
+      setStatus('服务器正在转换…', 'info');
+    };
+
+    xhr.onload = () => {
+      bar.style.width = '100%';
+      if (xhr.status === 200) {
+        objectUrl = URL.createObjectURL(xhr.response);
+        const name = selected.name.replace(/\.epub$/i, '') + '_简体.epub';
+        dl.href = objectUrl;
+        dl.download = name;
+        dl.textContent = '⬇︎ 下载 ' + name;
+        dlBox.classList.add('show');
+        setStatus('转换完成 ✅', 'ok');
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => setStatus('转换失败：\n' + reader.result, 'err');
+        reader.readAsText(xhr.response);
+      }
+      submit.disabled = false;
+      setTimeout(() => progress.classList.remove('show'), 1200);
+    };
+
+    xhr.onerror = () => {
+      setStatus('网络错误，请确认服务仍在运行。', 'err');
+      submit.disabled = false;
+      progress.classList.remove('show');
+    };
+
+    xhr.send(data);
+  });
+})();
+</script>
+</body>
+</html>

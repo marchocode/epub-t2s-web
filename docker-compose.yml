@@ -1,0 +1,80 @@
+# EPUB 繁转简 服务
+#
+# 启动:      docker compose up -d --build
+# 查看日志:  docker compose logs -f
+# 停止:      docker compose down
+#
+# 默认监听 127.0.0.1:8000（仅本机可访问）。
+# 发布到公网并让搜索引擎收录，请参考 DEPLOY.md。
+
+services:
+  web:
+    build: .
+    image: epub-converter:latest
+    container_name: epub-converter
+    restart: unless-stopped
+    ports:
+      # 只绑定本机，避免直接暴露；由反向代理转发
+      - "127.0.0.1:8000:8000"
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      # 站点对外地址（影响 canonical / sitemap / og:url），发布时必须改成 https 域名
+      SITE_URL: ${SITE_URL:-http://127.0.0.1:8000}
+      SITE_NAME: ${SITE_NAME:-EPUB 繁转简}
+      SITE_DESCRIPTION: ${SITE_DESCRIPTION:-}
+      SITE_KEYWORDS: ${SITE_KEYWORDS:-}
+      INDEX_STATS_PAGE: ${INDEX_STATS_PAGE:-0}
+      GOOGLE_SITE_VERIFICATION: ${GOOGLE_SITE_VERIFICATION:-}
+      BING_SITE_VERIFICATION: ${BING_SITE_VERIFICATION:-}
+      BAIDU_SITE_VERIFICATION: ${BAIDU_SITE_VERIFICATION:-}
+      STATS_DB: /data/stats.db
+    volumes:
+      # 持久化统计数据库
+      - stats-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status==200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # -------------------------------------------------------------------------
+  # 可选：Caddy 反向代理 + 自动 HTTPS（Let's Encrypt）
+  #
+  # 启用步骤:
+  #   1) 域名解析到本服务器
+  #   2) 在 .env 设置 SITE_URL=https://你的域名 且 DOMAIN=你的域名
+  #   3) 取消下面 caddy 服务的注释（去掉每行前面的 "# "）
+  #   4) 把上面 web 的 ports 注释掉（改用 caddy 暴露 80/443），并把 caddy 的
+  #      ports 改成 80:80 / 443:443
+  #
+  # caddy:
+  #   image: caddy:2-alpine
+  #   container_name: epub-caddy
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   environment:
+  #     DOMAIN: ${DOMAIN}
+  #   volumes:
+  #     - ./Caddyfile:/etc/caddy/Caddyfile:ro
+  #     - caddy-data:/data
+  #     - caddy-config:/config
+  #   depends_on:
+  #     - web
+
+volumes:
+  stats-data:
+  # 启用 caddy 时取消以下注释
+  # caddy-data:
+  # caddy-config:

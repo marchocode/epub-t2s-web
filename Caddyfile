@@ -1,0 +1,25 @@
+# Caddy 反向代理配置（配合 docker-compose.yml 中可选的 caddy 服务）
+# Caddy 会自动申请并续期 Let's Encrypt 证书
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# EPUB 上传可能较大，需放宽请求体限制
+	request_body {
+		max_size 210MB
+	}
+
+	reverse_proxy web:8000 {
+		# 传递真实客户端 IP（统计来源 IP 依赖此头）
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 10mb
+			roll_keep 3
+		}
+	}
+}
