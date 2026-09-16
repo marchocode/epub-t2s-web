@@ -121,4 +121,4 @@ curl -F "file=@书籍.epub" http://127.0.0.1:8000/convert -o 书籍_简体.epub
 
 ## License
 
-MIT
+[MIT](LICENSE)
